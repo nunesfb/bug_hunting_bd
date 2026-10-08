@@ -36,7 +36,7 @@ Neste repositório, cada push na `main` dispara o workflow `.github/workflows/de
 - **2 horas** no cronômetro. O cronômetro **para durante a pausa** (botão ⏸, tecla P/ESC ou ao trocar de aba).
 - XP por acerto cresce por mundo: 100, 150, 200, 250, 300, 400 (chefe vale 1,5×). Pista: recebe 70% do XP daquela questão. Erro: −10 a −35 XP conforme o mundo; tentativas ilimitadas.
 - Vitória: bônus de 1 XP a cada 5 segundos restantes.
-- As alternativas são embaralhadas por equipe (cada partida tem uma ordem diferente).
+- As alternativas são embaralhadas por jogador(a) (cada partida tem uma ordem diferente).
 - A plataforma também fica mais difícil: buracos, mais inimigos, inimigos voadores e plataformas móveis. Cair ou ser atingido **não** tira XP — volta-se ao último checkpoint.
 - O progresso fica no `localStorage` do navegador: é possível fechar a aba e continuar depois no mesmo computador/navegador. REINICIAR apaga tudo (com confirmação).
 - Os desafios simulam análises SQL; **não executam consultas reais** nem exigem PostgreSQL.

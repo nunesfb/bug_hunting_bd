@@ -36,9 +36,10 @@ export function buildLevel(w: number): Level {
   const width = 2800 + w * 200;
   const pitW = 60 + w * 10;
   const pits: [number, number][] = [];
-  [820, 1460, 2160].slice(0, Math.min(w, 3)).forEach(a => pits.push([a, a + pitW]));
+  // Cada buraco tem chão de sobra antes dele: quem desce andando de uma plataforma nunca cai direto no abismo.
+  [820, 1420, 2300].slice(0, Math.min(w, 3)).forEach(a => pits.push([a, a + pitW]));
   const mover = w >= 4;
-  if (mover) pits.push([2480, 2710]);
+  if (mover) pits.push([2600, 2830]);
 
   const plats: Plat[] = [];
   let gx = 0;
@@ -48,38 +49,64 @@ export function buildLevel(w: number): Level {
   fp(300, 318, 120);            // plataforma bônus
   fp(1080, 316, 170);           // terminal 2
   fp(1650, 330, 110);           // escada até o terminal 3
-  fp(1780, 262, 120);
-  if (w >= 3) fp(1920, 196, 150);
-  if (mover) plats.push({ x: 2490, y: 360, w: 90, h: 14, dx: 0, move: { x0: 2490, range: 120, speed: 0.9 + (w - 4) * 0.35, t: 0 } });
+  fp(1780, 262, 140);
+  if (w >= 3) fp(1940, 196, 150);
+  if (mover) plats.push({ x: 2610, y: 360, w: 120, h: 14, dx: 0, move: { x0: 2610, range: 90, speed: 0.9 + (w - 4) * 0.35, t: 0 } });
 
   const ids = challenges.filter(c => c.world === w).map(c => c.id);
-  const pos = [{ x: 520, y: GROUND }, { x: 1165, y: 316 }, w >= 3 ? { x: 1995, y: 196 } : { x: 1840, y: 262 }, { x: width - 520, y: GROUND }];
+  const pos = [{ x: 520, y: GROUND }, { x: 1165, y: 316 }, w >= 3 ? { x: 2015, y: 196 } : { x: 1850, y: 262 }, { x: width - 520, y: GROUND }];
   const terms: Term[] = ids.map((id, idx) => ({ id, idx, x: pos[idx].x, y: pos[idx].y, boss: idx === 3 }));
 
   const groundAt = (x: number) => plats.find(p => p.ground && x > p.x + 20 && x < p.x + p.w - 40);
   const enemies: Enemy[] = [];
+  const safeZones: [number, number][] = [
+    [0, 260],
+    ...terms.filter(t => t.y === GROUND).map(t => [t.x - 90, t.x + 110] as [number, number]),
+    // bordas dos buracos: ninguém deve ser forçado a pular na beira nem pousar em cima de um inimigo
+    ...pits.map(([a, b]) => [a - (b - a > 170 ? 170 : 60), a] as [number, number]),
+    ...pits.map(([, b]) => [b, b + 100] as [number, number]),
+  ];
+  // Rastejantes: mais numerosos e rápidos a cada mundo, preenchendo só o chão livre das zonas seguras.
   const n = 3 + w * 2;
-  for (let k = 0; k < n; k++) {
-    const x = 650 + (k + 0.5) * (width - 1500) / n;
-    const seg = groundAt(x);
-    if (!seg || terms.some(t => t.y === GROUND && Math.abs(t.x - x) < 110)) continue;
-    const minX = Math.max(seg.x + 10, x - 110), maxX = Math.min(seg.x + seg.w - 36, x + 110);
-    if (maxX - minX < 60) continue;
-    const speed = (0.8 + w * 0.25) * (k % 2 ? 1 : -1);
-    enemies.push({ kind: 'crawler', x, y: GROUND - 20, baseY: GROUND - 20, w: 26, h: 20, vx: speed, minX, maxX, alive: true, respawn: 0, phase: k });
+  const R = 100 - w * 6; // patrulhas mais curtas cabem em mais trechos nos mundos difíceis
+  const crawl: Enemy[] = [];
+  for (let pass = 0; pass < 2 && crawl.length < n; pass++) {
+    for (let x = 300 + pass * 70; x < width - 700 && crawl.length < n; x += 140) {
+      const seg = groundAt(x);
+      if (!seg) continue;
+      let minX = Math.max(seg.x + 10, x - R), maxX = Math.min(seg.x + seg.w - 36, x + R);
+      for (const [a, b] of safeZones) {
+        if (maxX + 26 <= a || minX >= b) continue;
+        if (x < a) maxX = Math.min(maxX, a - 26); else minX = Math.max(minX, b);
+      }
+      if (maxX - minX < 50 || x < minX || x > maxX) continue;
+      if (crawl.some(c => maxX + 26 + 40 > c.minX && minX < c.maxX + 26 + 40)) continue;
+      const k = crawl.length;
+      crawl.push({ kind: 'crawler', x, y: GROUND - 20, baseY: GROUND - 20, w: 26, h: 20, vx: (0.8 + w * 0.25) * (k % 2 ? 1 : -1), minX, maxX, alive: true, respawn: 0, phase: k });
+    }
   }
-  for (let k = 0; k < w; k++) {
-    const x = 900 + (k + 0.5) * (width - 2000) / w;
-    const baseY = 230 + (k % 2) * 45;
-    enemies.push({ kind: 'flyer', x, y: baseY, baseY, w: 26, h: 18, vx: (0.8 + w * 0.2) * (k % 2 ? 1 : -1), minX: x - 150, maxX: x + 150, alive: true, respawn: 0, phase: k * 1.7 });
+  enemies.push(...crawl);
+  // Voadores só sobre chão plano (nunca sobre buracos, escadas ou plataformas com terminal), para
+  // que um empurrão jamais derrube o jogador num abismo. Na altura em que voam, só atingem quem pula.
+  const FLY_R = 70;
+  const noFly: [number, number][] = [[0, 300], [280, 440], [1040, 1290], [1600, 2140], [width - 700, width], ...pits.map(([a, b]) => [a - 90, b + 90] as [number, number])];
+  const flyX: number[] = [];
+  for (let x = 300; x < width - 700 && flyX.length < w; x += 10) {
+    if (noFly.some(([a, b]) => x + FLY_R + 26 > a && x - FLY_R < b)) continue;
+    if (flyX.some(f => Math.abs(f - x) < 2 * FLY_R + 60)) continue;
+    flyX.push(x);
   }
+  flyX.forEach((x, k) => {
+    const baseY = 240 + (k % 2) * 30;
+    enemies.push({ kind: 'flyer', x, y: baseY, baseY, w: 26, h: 18, vx: (0.8 + w * 0.2) * (k % 2 ? 1 : -1), minX: x - FLY_R, maxX: x + FLY_R, alive: true, respawn: 0, phase: k * 1.7 });
+  });
 
   const coins: Coin[] = [];
   for (let i = 0; i < 3; i++) coins.push({ x: 330 + i * 30, y: 296, taken: false });
   for (const [a, b] of pits) { const m = (a + b) / 2; coins.push({ x: m - 30, y: 340, taken: false }, { x: m, y: 318, taken: false }, { x: m + 30, y: 340, taken: false }); }
   for (let x = 700; x < width - 700; x += 260) if (groundAt(x) && !terms.some(t => Math.abs(t.x - x) < 60)) coins.push({ x, y: 372, taken: false });
-  coins.push({ x: 1810, y: 238, taken: false }, { x: 1850, y: 238, taken: false });
-  if (w >= 3) coins.push({ x: 1960, y: 172, taken: false }, { x: 2040, y: 172, taken: false });
+  coins.push({ x: 1810, y: 238, taken: false }, { x: 1890, y: 238, taken: false });
+  if (w >= 3) coins.push({ x: 1980, y: 172, taken: false }, { x: 2060, y: 172, taken: false });
 
   return { width, plats, pits, terms, enemies, coins, portalX: width - 140, bossX: width - 400, final: w === worlds.length - 1 };
 }
@@ -153,6 +180,7 @@ export class Engine {
   }
 
   setPaused(v: boolean) {
+    if (this.paused && !v) this.p.invuln = Math.max(this.p.invuln, 45); // tempo de reação ao voltar
     this.paused = v;
     if (v) { this.keys.clear(); this.p.jumpBuf = 0; }
   }
@@ -284,6 +312,10 @@ export class Engine {
         p.y = pl.y - PH; p.vy = 0; p.ground = true; p.onPlat = pl; break;
       }
     }
+    if (p.y + PH > GROUND + 2) {
+      const pit = L.pits.find(([a, b]) => p.x + PW / 2 > a && p.x + PW / 2 < b);
+      if (pit) p.x = clamp(p.x, pit[0], pit[1] - PW);
+    }
     if (!wasGround && p.ground && vyBefore > 5) { this.dust(p.x + PW / 2, p.y + PH, 7); p.squash = 0.3; this.ev.sfx('land'); }
     p.squash *= 0.8;
     if (p.ground && Math.abs(p.vx) > 0.5) p.walk += Math.abs(p.vx) * 0.09;
@@ -308,8 +340,8 @@ export class Engine {
         this.floaters.push({ x: e.x + e.w / 2, y: e.y - 10, text: 'BUG ESMAGADO!', color: '#ff9fb2', life: 50, max: 50, big: false });
         this.ev.sfx('stomp'); this.ev.onStomp();
       } else if (p.invuln === 0) {
-        p.invuln = 90; p.knock = 14;
-        p.vx = p.x + PW / 2 < e.x + e.w / 2 ? -6 : 6; p.vy = -5;
+        p.invuln = 90; p.knock = 12;
+        p.vx = p.x + PW / 2 < e.x + e.w / 2 ? -4.5 : 4.5; p.vy = -4.5;
         this.shake = 9; this.flash = 0.5; this.flashColor = '#ff2a55';
         this.ev.sfx('hurt');
       }

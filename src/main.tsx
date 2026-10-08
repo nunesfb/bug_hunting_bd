@@ -39,7 +39,7 @@ function getSave(): Save {
   return makeInitial();
 }
 
-/** Embaralhamento determinístico das alternativas por equipe (evita "a resposta é a B"). */
+/** Embaralhamento determinístico das alternativas por jogador(a) (evita "a resposta é a B"). */
 function optionOrder(seed: number, id: number, n: number) {
   let x = (seed ^ (id * 2654435761)) >>> 0;
   const rnd = () => { x = (x + 0x6d2b79f5) >>> 0; let t = Math.imul(x ^ (x >>> 15), 1 | x); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -255,7 +255,7 @@ function Game() {
   const start = () => {
     unlockAudio();
     sfx('world');
-    setSave(s => ({ ...s, started: true, finished: false, paused: false, name: s.name.trim() || 'EQUIPE BYTE' }));
+    setSave(s => ({ ...s, started: true, finished: false, paused: false, name: s.name.trim() || 'JOGADOR(A) BYTE' }));
     setWorldCard(save.world);
   };
 
@@ -402,7 +402,7 @@ function Game() {
       <p>Dr. Null espalhou <b>{TOTAL} bugs críticos</b> por <b>seis mundos</b>. Atravesse plataformas 2D, esmague bugs, encontre os terminais infectados e salve o comércio do Reino Digital resolvendo incidentes de PostgreSQL — cada bug mais difícil que o anterior.</p>
       <div className="features"><span>🎮 6 mundos</span><span>💻 {TOTAL} incidentes SQL</span><span>⏱ 2 horas</span><span>☠ 6 chefes</span><span>💡 Pistas com custo</span></div>
       <div className="ladder">{worlds.map((w, i) => <div key={i} style={{ ['--c' as string]: w.color, animationDelay: `${i * 0.08}s` }}><b>{i + 1}</b><span>{w.short}</span><small>{w.level}</small><em>{'★'.repeat(i + 1)}</em></div>)}</div>
-      <label>NOME DA EQUIPE<input maxLength={28} placeholder="Ex.: Os Caçadores de NULL" value={save.name} onChange={e => setSave(s => ({ ...s, name: e.target.value }))} /></label>
+      <label>SEU NOME<input maxLength={28} placeholder="Ex.: Ana Souza" autoComplete="name" value={save.name} onChange={e => setSave(s => ({ ...s, name: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); (e.target as HTMLInputElement).blur(); start(); } }} /></label>
       <button className="primary huge pulse" onClick={start}>▶ INICIAR MISSÃO</button>
       <small>CONTROLES: A/D ou ←/→ mover • ESPAÇO/W/↑ pular (segure para pular mais alto) • E interagir • P pausar • No terminal: A–E escolhe, ENTER confirma, ESC sai</small>
     </section>}
@@ -425,7 +425,7 @@ function Game() {
         <div><strong>{save.pauses}</strong><small>PAUSAS</small></div>
       </div>
       <div className="worldsDone">{worlds.map((w, i) => { const n = challenges.filter(c => c.world === i && save.cleared.includes(c.id)).length; return <span key={i} style={{ ['--c' as string]: w.color }} className={n === BUGS_PER_WORLD ? 'ok' : ''}>{w.short} {n}/{BUGS_PER_WORLD}</span>; })}</div>
-      <p>Equipe: <b>{save.name}</b></p>
+      <p>Jogador(a): <b>{save.name}</b></p>
       <button className="primary" onClick={reset}>↻ JOGAR NOVAMENTE</button>
       <button onClick={() => window.print()}>🖨 IMPRIMIR RESULTADO</button>
     </section>}
@@ -482,7 +482,7 @@ function Game() {
             className={(choice === oi ? 'selected ' : '') + (solved && oi === current.correct ? 'right' : '')}
             onClick={() => select(di)}><span>{LETTERS[di]}</span>{current.options[oi]}</button>)}</div>
           {hintOn && <div className="hint">💡 PISTA: {current.hint}</div>}
-          {!hintOn && !solved && wrongHere >= 2 && <div className="nudge">🤔 Travou? Discutam a anomalia em equipe — ou peçam uma pista.</div>}
+          {!hintOn && !solved && wrongHere >= 2 && <div className="nudge">🤔 Travou? Descreva a anomalia com suas palavras e releia o código — ou peça uma pista.</div>}
           {feedback && <div className={'feedback ' + (feedback.ok ? 'ok' : 'bad')}>{feedback.text}</div>}
           <div className="terminalActions">
             <div>
@@ -499,7 +499,7 @@ function Game() {
       <div className="pausePanel panel">
         <span className="eyebrow">{save.pauses > 0 ? 'JOGO PAUSADO' : 'MISSÃO SALVA'}</span>
         <h2 id="pause-title">⏸ {save.pauses > 0 ? 'PAUSA' : 'BEM-VINDO DE VOLTA'}</h2>
-        <p>Equipe <b>{save.name}</b> · Mundo {worldIdx + 1} ({world.short}) · {completed}/{TOTAL} bugs · {save.score} XP</p>
+        <p><b>{save.name}</b> · Mundo {worldIdx + 1} ({world.short}) · {completed}/{TOTAL} bugs · {save.score} XP</p>
         <div className="pauseTime">⏱ {fmt(save.seconds)} <small>CRONÔMETRO PARADO</small></div>
         <p className="muted">O progresso fica salvo neste navegador. Você pode fechar a aba e continuar depois, no mesmo computador.</p>
         <button className="primary huge pulse" onClick={resume}>▶ CONTINUAR MISSÃO</button>
